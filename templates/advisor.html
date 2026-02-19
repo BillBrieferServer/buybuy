@@ -56,7 +56,20 @@
 <script>
 function askQuestion(q) {
     document.querySelector('textarea[name="question"]').value = q;
+    showLoading('Getting your answer...');
     document.querySelector('form').submit();
+}
+
+document.querySelector('form').addEventListener('submit', function() {
+    showLoading('Analyzing your question...');
+});
+
+function showLoading(msg) {
+    var overlay = document.getElementById('loadingOverlay');
+    if (overlay) {
+        overlay.querySelector('.loading-text').textContent = msg || 'Analyzing...';
+        overlay.classList.add('active');
+    }
 }
 </script>
 {% endblock %}

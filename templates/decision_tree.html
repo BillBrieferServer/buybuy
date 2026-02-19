@@ -1,5 +1,14 @@
 {% extends "base.html" %}
-{% block title %}Decision Guide{% endblock %}
+{% block title %}Decision Guide<script>
+document.querySelector("form").addEventListener("submit", function() {
+    var overlay = document.getElementById("loadingOverlay");
+    if (overlay) {
+        overlay.querySelector(".loading-text").textContent = "Evaluating purchase...";
+        overlay.classList.add("active");
+    }
+});
+</script>
+{% endblock %}
 
 {% block content %}
 <div class="decision-page">
@@ -116,4 +125,13 @@
     </div>
     {% endif %}
 </div>
+<script>
+document.querySelector("form").addEventListener("submit", function() {
+    var overlay = document.getElementById("loadingOverlay");
+    if (overlay) {
+        overlay.querySelector(".loading-text").textContent = "Evaluating purchase...";
+        overlay.classList.add("active");
+    }
+});
+</script>
 {% endblock %}

@@ -1,0 +1,21 @@
+{
+    "name": "Idaho Procurement Advisor",
+    "short_name": "ProcAdvisor",
+    "description": "AI-powered procurement guidance for Idaho public officials",
+    "start_url": "/home",
+    "display": "standalone",
+    "background_color": "#f8f9fa",
+    "theme_color": "#1a5276",
+    "icons": [
+        {
+            "src": "/static/icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png"
+        },
+        {
+            "src": "/static/icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png"
+        }
+    ]
+}
