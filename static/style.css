@@ -584,3 +584,15 @@ footer a { color: var(--primary-light); }
     .card h2 { font-size: 1rem; }
     .info-box table { min-width: 450px; }
 }
+
+/* Post-answer UX */
+.hidden { display: none; }
+.new-question-section {
+    text-align: center;
+    margin: 1.5rem 0;
+}
+.btn-new-question {
+    font-size: 1.1rem;
+    padding: 0.9rem 2rem;
+    min-height: 48px;
+}

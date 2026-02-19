@@ -164,3 +164,48 @@ def build_ai_context():
         context += f"- **{c['category_name']}** ({c['ordering_method']}): {c['description']}\n"
 
     return context
+
+
+def get_vendor_preference(state_input: str) -> dict:
+    """
+    Look up a state's vendor preference policy.
+    Accept state name or abbreviation, case-insensitive.
+    """
+    state_input = state_input.strip()
+    with get_db() as conn:
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        if len(state_input) == 2:
+            cur.execute(
+                'SELECT * FROM vendor_preference_states WHERE UPPER(state_abbrev) = UPPER(%s)',
+                (state_input,))
+        else:
+            cur.execute(
+                'SELECT * FROM vendor_preference_states WHERE LOWER(state_name) = LOWER(%s)',
+                (state_input,))
+        return cur.fetchone()
+
+
+def get_all_preference_states() -> list:
+    """
+    Return list of all states that have vendor preferences.
+    Used for general vendor preference questions.
+    """
+    with get_db() as conn:
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        cur.execute(
+            'SELECT state_name, state_abbrev, preference_percent, preference_type, '
+            'applies_to, state_statute, notes '
+            'FROM vendor_preference_states WHERE has_preference = TRUE '
+            'ORDER BY state_name')
+        return cur.fetchall()
+
+
+def get_no_preference_states() -> list:
+    """Return list of states with no vendor preference."""
+    with get_db() as conn:
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        cur.execute(
+            'SELECT state_name, state_abbrev, notes '
+            'FROM vendor_preference_states WHERE has_preference = FALSE '
+            'ORDER BY state_name')
+        return cur.fetchall()
