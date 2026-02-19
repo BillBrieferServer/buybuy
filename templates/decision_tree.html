@@ -1,27 +1,18 @@
 {% extends "base.html" %}
-{% block title %}Decision Guide<script>
-document.querySelector("form").addEventListener("submit", function() {
-    var overlay = document.getElementById("loadingOverlay");
-    if (overlay) {
-        overlay.querySelector(".loading-text").textContent = "Evaluating purchase...";
-        overlay.classList.add("active");
-    }
-});
-</script>
-{% endblock %}
+{% block title %}Decision Guide{% endblock %}
 
 {% block content %}
 <div class="decision-page">
     <h1>Procurement Decision Guide</h1>
     <p>Tell us about your purchase and we'll determine the required procurement process and compliance requirements.</p>
 
+    {% if not result %}
     <form method="POST" action="/decision-tree" class="decision-form">
         <div class="form-group">
             <label for="purchase_type">What are you buying?</label>
             <select name="purchase_type" id="purchase_type" required>
                 {% for key, val in purchase_types.items() %}
-                <option value="{{ key }}"
-                    {% if submitted and submitted.purchase_type == key %}selected{% endif %}>
+                <option value="{{ key }}">
                     {{ val.label }}
                 </option>
                 {% endfor %}
@@ -30,8 +21,7 @@ document.querySelector("form").addEventListener("submit", function() {
 
         <div class="form-group">
             <label for="amount">Estimated cost ($)</label>
-            <input type="text" name="amount" id="amount" placeholder="e.g., 150000"
-                   value="{{ submitted.amount if submitted else '' }}" required>
+            <input type="text" name="amount" id="amount" placeholder="e.g., 150000" required>
         </div>
 
         <div class="form-group">
@@ -39,8 +29,7 @@ document.querySelector("form").addEventListener("submit", function() {
             <select name="entity_type" id="entity_type">
                 <option value="all">Any / Not sure</option>
                 {% for key, label in entity_types %}
-                <option value="{{ key }}"
-                    {% if submitted and submitted.entity_type == key %}selected{% endif %}>
+                <option value="{{ key }}">
                     {{ label }}
                 </option>
                 {% endfor %}
@@ -50,8 +39,8 @@ document.querySelector("form").addEventListener("submit", function() {
         <div class="form-group">
             <label for="is_cooperative">Using a cooperative contract (CES, State of Idaho, etc.)?</label>
             <select name="is_cooperative" id="is_cooperative">
-                <option value="no" {% if submitted and submitted.is_cooperative == 'no' %}selected{% endif %}>No</option>
-                <option value="yes" {% if submitted and submitted.is_cooperative == 'yes' %}selected{% endif %}>Yes</option>
+                <option value="no">No</option>
+                <option value="yes">Yes</option>
             </select>
         </div>
 
@@ -61,6 +50,7 @@ document.querySelector("form").addEventListener("submit", function() {
 
         <button type="submit" class="btn-primary">Evaluate Purchase</button>
     </form>
+    {% endif %}
 
     {% if result %}
     <div class="result-box">
@@ -123,15 +113,21 @@ document.querySelector("form").addEventListener("submit", function() {
             specific legal questions.
         </div>
     </div>
+
+    <div class="new-question-section">
+        <a href="/decision-tree" class="btn-primary btn-new-question">Start New Evaluation</a>
+    </div>
     {% endif %}
 </div>
 <script>
-document.querySelector("form").addEventListener("submit", function() {
-    var overlay = document.getElementById("loadingOverlay");
-    if (overlay) {
-        overlay.querySelector(".loading-text").textContent = "Evaluating purchase...";
-        overlay.classList.add("active");
-    }
-});
+if (document.querySelector("form")) {
+    document.querySelector("form").addEventListener("submit", function() {
+        var overlay = document.getElementById("loadingOverlay");
+        if (overlay) {
+            overlay.querySelector(".loading-text").textContent = "Evaluating purchase...";
+            overlay.classList.add("active");
+        }
+    });
+}
 </script>
 {% endblock %}
