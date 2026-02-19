@@ -24,7 +24,7 @@ PURCHASE_TYPES = {
         'description': 'Architects, engineers, surveyors, construction managers'
     },
     'cooperative': {
-        'label': 'Cooperative Purchase (CES, Sourcewell, etc.)',
+        'label': 'Cooperative Purchase (CES, State of Idaho contracts)',
         'db_type': 'cooperative_purchase',
         'description': 'Purchase through a cooperative purchasing program'
     },
