@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign In — Procurement Advisor</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="login-page">
+        <div class="login-box">
+            <h1>Procurement Advisor</h1>
+            <p>Enter the access password to continue.</p>
+
+            {% if error %}
+            <div class="error">{{ error }}</div>
+            {% endif %}
+
+            <form method="POST" action="/login">
+                <input type="password" name="password" placeholder="Password" required autofocus>
+                <button type="submit" class="btn-primary">Sign In</button>
+            </form>
+
+            <a href="/" class="back-link">&larr; Back</a>
+        </div>
+    </div>
+</body>
+</html>

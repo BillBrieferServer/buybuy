@@ -1,0 +1,20 @@
+# Procurement Advisor — buybuy.quietimpact.ai
+services:
+  app:
+    build: .
+    container_name: buybuy-app
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8010:8000"
+    volumes:
+      - ./data:/app/data
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    env_file: .env
+    mem_limit: 512m
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s

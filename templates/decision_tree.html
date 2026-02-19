@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% block title %}Decision Guide{% endblock %}
+
+{% block content %}
+<div class="decision-page">
+    <h1>Procurement Decision Guide</h1>
+    <p>Tell us about your purchase and we'll determine the required procurement process and compliance requirements.</p>
+
+    <form method="POST" action="/decision-tree" class="decision-form">
+        <div class="form-group">
+            <label for="purchase_type">What are you buying?</label>
+            <select name="purchase_type" id="purchase_type" required>
+                {% for key, val in purchase_types.items() %}
+                <option value="{{ key }}"
+                    {% if submitted and submitted.purchase_type == key %}selected{% endif %}>
+                    {{ val.label }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="amount">Estimated cost ($)</label>
+            <input type="text" name="amount" id="amount" placeholder="e.g., 150000"
+                   value="{{ submitted.amount if submitted else '' }}" required>
+        </div>
+
+        <div class="form-group">
+            <label for="entity_type">Your entity type</label>
+            <select name="entity_type" id="entity_type">
+                <option value="all">Any / Not sure</option>
+                {% for key, label in entity_types %}
+                <option value="{{ key }}"
+                    {% if submitted and submitted.entity_type == key %}selected{% endif %}>
+                    {{ label }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="is_cooperative">Using a cooperative contract (CES, Sourcewell, etc.)?</label>
+            <select name="is_cooperative" id="is_cooperative">
+                <option value="no" {% if submitted and submitted.is_cooperative == 'no' %}selected{% endif %}>No</option>
+                <option value="yes" {% if submitted and submitted.is_cooperative == 'yes' %}selected{% endif %}>Yes</option>
+            </select>
+        </div>
+
+        {% if error %}
+        <div class="error">{{ error }}</div>
+        {% endif %}
+
+        <button type="submit" class="btn-primary">Evaluate Purchase</button>
+    </form>
+
+    {% if result %}
+    <div class="result-box">
+        <h2>Procurement Analysis</h2>
+
+        <div class="result-summary">
+            <div class="result-item">
+                <strong>Purchase Amount:</strong> ${{ "{:,}".format(result.evaluation.amount) }}
+            </div>
+            <div class="result-item">
+                <strong>Required Process:</strong>
+                <span class="process-badge {{ result.evaluation.process }}">
+                    {{ result.evaluation.process_description }}
+                </span>
+            </div>
+            {% if result.evaluation.statute %}
+            <div class="result-item">
+                <strong>Governing Statute:</strong> Idaho Code {{ result.evaluation.statute }}
+            </div>
+            {% endif %}
+            {% if result.evaluation.notes %}
+            <div class="result-item note">
+                <strong>Note:</strong> {{ result.evaluation.notes }}
+            </div>
+            {% endif %}
+        </div>
+
+        <h3>Compliance Checklist</h3>
+        <div class="checklist">
+            {% for item in result.checklist %}
+            <div class="checklist-item {{ item.status }}">
+                <div class="check-marker">
+                    {% if item.status == 'required' %}
+                        <span class="icon required">!</span>
+                    {% elif item.status == 'recommended' %}
+                        <span class="icon recommended">?</span>
+                    {% elif item.status == 'not_required' %}
+                        <span class="icon clear">&#10003;</span>
+                    {% else %}
+                        <span class="icon info">i</span>
+                    {% endif %}
+                </div>
+                <div class="check-content">
+                    <strong>{{ item.item }}</strong>
+                    {% if item.statute %}
+                    <span class="statute-ref">({{ item.statute }})</span>
+                    {% endif %}
+                    <p>{{ item.description }}</p>
+                    {% if item.penalty %}
+                    <p class="penalty"><em>Penalty: {{ item.penalty }}</em></p>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <div class="disclaimer-box">
+            <strong>Disclaimer:</strong> This checklist is informational guidance, not legal advice.
+            Your entity may have additional local procurement policies. Consult your attorney for
+            specific legal questions.
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

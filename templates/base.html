@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Procurement Advisor{% endblock %} — Idaho</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <header>
+        <nav>
+            <a href="/home" class="logo">Procurement Advisor</a>
+            <div class="nav-links">
+                {% block nav %}
+                <a href="/home">Home</a>
+                <a href="/advisor">Ask a Question</a>
+                <a href="/decision-tree">Decision Guide</a>
+                <a href="/logout" class="logout">Logout</a>
+                {% endblock %}
+            </div>
+        </nav>
+    </header>
+
+    <main>
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer>
+        <div class="disclaimer">
+            <strong>Disclaimer:</strong> This tool provides informational guidance only and does not
+            constitute legal advice. Consult your entity's attorney for specific legal questions.
+            Idaho procurement law may change — verify current statutes at
+            <a href="https://legislature.idaho.gov" target="_blank">legislature.idaho.gov</a>.
+        </div>
+        <div class="footer-info">
+            Powered by <a href="https://quietimpact.ai">Quiet Impact</a>
+        </div>
+    </footer>
+</body>
+</html>

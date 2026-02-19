@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}Home{% endblock %}
+
+{% block content %}
+<div class="home-page">
+    <h1>Idaho Procurement Advisor</h1>
+    <p class="subtitle">Navigate public procurement with confidence. Every answer grounded in Idaho Code.</p>
+
+    <div class="card-grid">
+        <a href="/advisor" class="card">
+            <h2>Ask a Question</h2>
+            <p>Ask any procurement question in plain language and get an answer with specific statute citations.</p>
+            <div class="examples">
+                <em>"Do I need to bid this $80,000 truck purchase?"</em><br>
+                <em>"Can I use a CES contract without going to bid?"</em><br>
+                <em>"What's the threshold for public works projects?"</em>
+            </div>
+        </a>
+
+        <a href="/decision-tree" class="card">
+            <h2>Decision Guide</h2>
+            <p>Tell us what you're buying, how much it costs, and what type of entity you are.
+               We'll tell you exactly what procurement process you need.</p>
+            <div class="examples">
+                <em>Step-by-step procurement process finder</em><br>
+                <em>Compliance checklist generator</em><br>
+                <em>Cooperative purchasing guidance</em>
+            </div>
+        </a>
+    </div>
+
+    <div class="info-box">
+        <h3>Current Thresholds (2025)</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Purchase Type</th>
+                    <th>Under</th>
+                    <th>Category A</th>
+                    <th>Category B</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Goods / Services</td>
+                    <td>Under $100K: Exempt</td>
+                    <td>$100K–$250K: Informal Bid</td>
+                    <td>$250K+: Formal Sealed Bid</td>
+                </tr>
+                <tr>
+                    <td>Public Works</td>
+                    <td>Under $50K: Exempt</td>
+                    <td>$50K–$200K: Open Bid</td>
+                    <td>$200K+: Prequalified Bid</td>
+                </tr>
+                <tr>
+                    <td>Professional Services</td>
+                    <td colspan="3">QBS (Qualifications-Based Selection) — no dollar threshold</td>
+                </tr>
+                <tr>
+                    <td>Cooperative Purchase</td>
+                    <td colspan="3">Exempt — deemed compliant per Idaho Code 67-2807</td>
+                </tr>
+            </tbody>
+        </table>
+        <p class="table-note">Services thresholds changed in 2025 (from $75K/$150K to $100K/$250K).</p>
+    </div>
+</div>
+{% endblock %}
