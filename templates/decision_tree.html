@@ -53,6 +53,14 @@
     {% endif %}
 
     {% if result %}
+    <div class="your-question">
+        <strong>Your query:</strong>
+        {{ purchase_types[submitted.purchase_type].label }} &mdash;
+        ${{ "{:,}".format(submitted.amount) }}
+        {% if submitted.entity_type != 'all' %}&mdash; {{ submitted.entity_type }}{% endif %}
+        {% if submitted.is_cooperative == 'yes' %}&mdash; Cooperative{% endif %}
+    </div>
+
     <div class="result-box">
         <h2>Procurement Analysis</h2>
 

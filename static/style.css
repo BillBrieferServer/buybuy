@@ -596,3 +596,14 @@ footer a { color: var(--primary-light); }
     padding: 0.9rem 2rem;
     min-height: 48px;
 }
+
+/* Original question/query echo */
+.your-question {
+    background: #eaf2f8;
+    border-left: 4px solid #1a5276;
+    padding: 0.75rem 1rem;
+    margin-bottom: 1.5rem;
+    border-radius: 4px;
+    font-size: 1rem;
+    color: #2c3e50;
+}
