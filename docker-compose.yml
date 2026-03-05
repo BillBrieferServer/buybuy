@@ -4,6 +4,10 @@ services:
     build: .
     container_name: buybuy-app
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     ports:
       - "127.0.0.1:8010:8000"
     volumes:
