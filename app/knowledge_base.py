@@ -128,6 +128,18 @@ def get_ces_categories():
         return cur.fetchall()
 
 
+
+def get_ces_knowledge():
+    """Get all CES organizational knowledge topics."""
+    with get_db() as conn:
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        cur.execute("""
+            SELECT topic_name, category, source_type, summary, key_points
+            FROM reference.ces_knowledge
+            ORDER BY category, topic_name
+        """)
+        return cur.fetchall()
+
 def build_ai_context():
     """Build the full knowledge context for AI prompts."""
     thresholds = get_all_thresholds()
@@ -162,6 +174,30 @@ def build_ai_context():
     context += "Under Idaho Code 67-2807, purchases through CES are deemed compliant.\n\n"
     for c in ces:
         context += f"- **{c['category_name']}** ({c['ordering_method']}): {c['description']}\n"
+
+    # CES organizational knowledge
+    try:
+        ces_knowledge = get_ces_knowledge()
+        if ces_knowledge:
+            context += "\n## CES ORGANIZATIONAL KNOWLEDGE\n\n"
+            context += ("CES (Cooperative Educational Services) is a purchasing cooperative "
+                        "founded in 1979, headquartered in New Mexico, with regional offices "
+                        "in Idaho and Utah. Below is institutional knowledge about CES programs, "
+                        "operations, and procedures.\n\n")
+            current_cat = None
+            for topic in ces_knowledge:
+                if topic['category'] != current_cat:
+                    current_cat = topic['category']
+                    cat_label = current_cat.replace('_', ' ').title()
+                    context += f"### {cat_label}\n\n"
+                context += f"**{topic['topic_name']}**\n"
+                context += f"{topic['summary']}\n"
+                if topic.get('key_points'):
+                    for p in topic['key_points']:
+                        context += f"  - {p}\n"
+                context += "\n"
+    except Exception as e:
+        logger.warning(f"Failed to load CES knowledge: {e}")
 
     return context
 
