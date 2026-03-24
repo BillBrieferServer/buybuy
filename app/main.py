@@ -6,6 +6,7 @@ buybuy.quietimpact.ai
 
 import os
 import logging
+import markdown
 from pathlib import Path
 from dotenv import load_dotenv
 load_dotenv()
@@ -71,6 +72,20 @@ async def health():
 
 
 # ─── Public Routes ────────────────────────────────────────────
+
+
+def render_history(history):
+    """Convert assistant markdown to HTML in conversation history."""
+    rendered = []
+    for msg in history:
+        if msg['role'] == 'assistant':
+            rendered.append({
+                'role': msg['role'],
+                'content': markdown.markdown(msg['content'], extensions=['tables', 'fenced_code'])
+            })
+        else:
+            rendered.append(msg)
+    return rendered
 
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
@@ -158,7 +173,7 @@ async def advisor_page(request: Request):
         return RedirectResponse("/login", status_code=302)
 
     conversation_id = get_conversation_id(request)
-    history = advisor.get_conversation(conversation_id)
+    history = render_history(advisor.get_conversation(conversation_id))
 
     response = templates.TemplateResponse(request, "advisor.html", context={
         "history": history,
@@ -180,7 +195,7 @@ async def advisor_submit(request: Request, question: str = Form(...)):
     if not ai_limiter.is_allowed(client_ip):
         remaining_wait = int(ai_limiter.seconds_until_next(client_ip)) + 1
         conversation_id = get_conversation_id(request)
-        history = advisor.get_conversation(conversation_id)
+        history = render_history(advisor.get_conversation(conversation_id))
         response = templates.TemplateResponse(request, "advisor.html", context={
             "history": history,
             "conversation_id": conversation_id,
@@ -195,14 +210,8 @@ async def advisor_submit(request: Request, question: str = Form(...)):
     conversation_id = get_conversation_id(request)
     result = await advisor.ask(question, conversation_id=conversation_id)
 
-    import markdown
-    response_html = markdown.markdown(
-        result['response'],
-        extensions=['tables', 'fenced_code']
-    )
-
     # Reload full conversation (now includes the new exchange)
-    history = advisor.get_conversation(conversation_id)
+    history = render_history(advisor.get_conversation(conversation_id))
 
     response = templates.TemplateResponse(request, "advisor.html", context={
         "history": history,
