@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}Generate Invite Link{% endblock %}
+
+{% block content %}
+<div class="invite-page">
+    <h1>Generate Invite Link</h1>
+    <p>Create a shareable link that lets someone access the Procurement Advisor without a password.</p>
+
+    <form method="POST" action="/invite" class="invite-form">
+        <div class="form-group">
+            <label for="label">Who is this for? (optional, for your reference)</label>
+            <input type="text" name="label" id="label" placeholder="e.g., Brother - ABC Contracting">
+        </div>
+        <div class="form-group">
+            <label for="days">Link expires in (days)</label>
+            <select name="days" id="days">
+                <option value="7">7 days</option>
+                <option value="30" selected>30 days</option>
+                <option value="90">90 days</option>
+                <option value="365">1 year</option>
+            </select>
+        </div>
+        <button type="submit" class="btn-primary">Generate Link</button>
+    </form>
+
+    {% if link %}
+    <div class="link-result">
+        <h3>Share this link:</h3>
+        <div class="link-box">
+            <input type="text" id="inviteLink" value="{{ link }}" readonly>
+            <button onclick="copyLink()" class="btn-copy" id="copyBtn">Copy</button>
+        </div>
+        {% if label %}
+        <p class="link-meta">For: {{ label }}</p>
+        {% endif %}
+        <p class="link-meta">Expires in {{ days }} days. Recipient gets a 7-day session cookie on first visit.</p>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+.invite-page h1 { margin-bottom: 0.25rem; }
+.invite-page > p { color: var(--text-light); margin-bottom: 1.5rem; }
+.invite-form {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    margin-bottom: 1.5rem;
+}
+.link-result {
+    background: #d5f5e3;
+    padding: 1.5rem;
+    border-radius: 10px;
+    border: 1px solid #27ae60;
+}
+.link-result h3 { margin-bottom: 0.75rem; color: #1e8449; }
+.link-box {
+    display: flex;
+    gap: 0.5rem;
+}
+.link-box input {
+    flex: 1;
+    padding: 0.65rem;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 0.9rem;
+    font-family: monospace;
+    background: white;
+}
+.btn-copy {
+    background: var(--primary);
+    color: white;
+    border: none;
+    padding: 0.65rem 1.25rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    white-space: nowrap;
+}
+.btn-copy:hover { background: var(--primary-light); }
+.link-meta { font-size: 0.85rem; color: var(--text-light); margin-top: 0.5rem; }
+@media (max-width: 768px) {
+    .link-box { flex-direction: column; }
+    .link-box input { font-size: 0.8rem; }
+}
+</style>
+
+<script>
+function copyLink() {
+    var input = document.getElementById('inviteLink');
+    input.select();
+    input.setSelectionRange(0, 99999);
+    navigator.clipboard.writeText(input.value).then(function() {
+        var btn = document.getElementById('copyBtn');
+        btn.textContent = 'Copied!';
+        setTimeout(function() { btn.textContent = 'Copy'; }, 2000);
+    });
+}
+</script>
+{% endblock %}

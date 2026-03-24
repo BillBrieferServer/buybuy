@@ -15,7 +15,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from .auth import check_auth, verify_password, create_session_cookie, logout
+from .auth import check_auth, verify_password, create_session_cookie, logout, generate_invite_token, validate_invite_token
 from . import procurement as proc
 from . import advisor
 from . import knowledge_base as kb
@@ -103,6 +103,48 @@ async def logout_route(request: Request):
     response = RedirectResponse("/", status_code=302)
     logout(response)
     return response
+
+@app.get("/enter/{token}")
+async def enter_via_link(request: Request, token: str):
+    """Authenticate via signed invite link — no password form needed."""
+    data = validate_invite_token(token)
+    if not data:
+        return templates.TemplateResponse("login.html", {
+            "request": request,
+            "error": "This link has expired or is invalid. Please request a new one."
+        })
+    response = RedirectResponse("/home", status_code=302)
+    create_session_cookie(response)
+    return response
+
+
+@app.get("/invite", response_class=HTMLResponse)
+async def invite_page(request: Request):
+    """Generate invite links (requires auth)."""
+    if not check_auth(request):
+        return RedirectResponse("/login", status_code=302)
+    return templates.TemplateResponse("invite.html", {
+        "request": request,
+        "link": None,
+    })
+
+
+@app.post("/invite", response_class=HTMLResponse)
+async def invite_generate(request: Request, label: str = Form(''), days: int = Form(30)):
+    """Generate a new invite link."""
+    if not check_auth(request):
+        return RedirectResponse("/login", status_code=302)
+    days = max(1, min(days, 365))
+    token = generate_invite_token(label=label, days=days)
+    base_url = str(request.base_url).rstrip('/')
+    link = f"{base_url}/enter/{token}"
+    return templates.TemplateResponse("invite.html", {
+        "request": request,
+        "link": link,
+        "label": label,
+        "days": days,
+    })
+
 
 
 # ─── Authenticated Routes ─────────────────────────────────────
