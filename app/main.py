@@ -217,7 +217,7 @@ async def advisor_submit(request: Request, question: str = Form(...)):
         "history": history,
         "conversation_id": conversation_id,
         "question": question,
-        "response": response_html,
+        "response": None,
         "cached": result['cached'],
         "tokens": result['tokens']
     })
