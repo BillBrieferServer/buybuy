@@ -7,13 +7,11 @@ Supports multi-turn conversations and async calls.
 
 import os
 import re
-import json
 import hashlib
 import sqlite3
 import logging
 import asyncio
 import uuid
-from datetime import datetime
 from pathlib import Path
 from anthropic import AsyncAnthropic
 
@@ -237,17 +235,6 @@ def get_conversation(conversation_id: str, limit: int = 20) -> list:
         return []
 
 
-def clear_conversation(conversation_id: str):
-    """Delete all messages for a conversation."""
-    try:
-        conn = sqlite3.connect(str(CACHE_DB))
-        conn.execute(
-            "DELETE FROM conversations WHERE conversation_id = ?",
-            (conversation_id,))
-        conn.commit()
-        conn.close()
-    except Exception as e:
-        logger.warning(f"Failed to clear conversation: {e}")
 
 
 # ─── State Detection ──────────────────────────────────────────

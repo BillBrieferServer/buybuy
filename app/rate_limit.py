@@ -30,14 +30,6 @@ class RateLimiter:
         q.append(now)
         return True
 
-    def remaining(self, key: str) -> int:
-        now = time.time()
-        window_start = now - self.window_seconds
-        q = self._requests[key]
-        while q and q[0] < window_start:
-            q.popleft()
-        return max(0, self.max_requests - len(q))
-
     def seconds_until_next(self, key: str) -> float:
         """Seconds until the oldest request expires from the window."""
         q = self._requests[key]

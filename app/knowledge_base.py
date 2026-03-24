@@ -92,16 +92,6 @@ def get_compliance_requirements(amount: int = None, entity_type: str = 'all',
     return applicable
 
 
-def get_statute(section: str):
-    """Get a specific statute summary."""
-    with get_db() as conn:
-        cur = conn.cursor(cursor_factory=RealDictCursor)
-        cur.execute("""
-            SELECT statute_section, title, subject_area, summary, key_points
-            FROM procurement_statutes
-            WHERE statute_section = %s
-        """, (section,))
-        return cur.fetchone()
 
 
 def get_all_statutes():

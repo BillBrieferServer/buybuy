@@ -7,12 +7,11 @@ buybuy.quietimpact.ai
 import os
 import logging
 import markdown
-from pathlib import Path
 from dotenv import load_dotenv
 load_dotenv()
 
-from fastapi import FastAPI, Request, Form, Depends
-from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
+from fastapi import FastAPI, Request, Form
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
@@ -178,7 +177,6 @@ async def advisor_page(request: Request):
     response = templates.TemplateResponse(request, "advisor.html", context={
         "history": history,
         "conversation_id": conversation_id,
-        "response": None,
         "question": None
     })
     set_conversation_cookie(response, conversation_id)
@@ -199,7 +197,6 @@ async def advisor_submit(request: Request, question: str = Form(...)):
         response = templates.TemplateResponse(request, "advisor.html", context={
             "history": history,
             "conversation_id": conversation_id,
-            "response": None,
             "question": question,
             "rate_limited": True,
             "wait_seconds": remaining_wait
@@ -218,8 +215,6 @@ async def advisor_submit(request: Request, question: str = Form(...)):
         "conversation_id": conversation_id,
         "question": question,
         "response": None,
-        "cached": result['cached'],
-        "tokens": result['tokens']
     })
     set_conversation_cookie(response, conversation_id)
     return response
@@ -284,49 +279,3 @@ async def decision_tree_submit(request: Request,
             'is_cooperative': is_cooperative
         }
     })
-
-
-@app.get("/checklist", response_class=HTMLResponse)
-async def checklist_page(request: Request):
-    if not check_auth(request):
-        return RedirectResponse("/login", status_code=302)
-    return RedirectResponse("/decision-tree", status_code=302)
-
-
-# ─── API Endpoints ────────────────────────────────────────────
-
-@app.post("/api/ask")
-async def api_ask(request: Request):
-    if not check_auth(request):
-        return JSONResponse({"error": "Unauthorized"}, status_code=401)
-
-    # Rate limit
-    client_ip = get_client_ip(request)
-    if not ai_limiter.is_allowed(client_ip):
-        return JSONResponse(
-            {"error": "Rate limit exceeded. Please wait before asking another question."},
-            status_code=429,
-        )
-
-    body = await request.json()
-    question = body.get('question', '')
-    if not question:
-        return JSONResponse({"error": "No question provided"}, status_code=400)
-
-    conversation_id = body.get('conversation_id')
-    result = await advisor.ask(question, conversation_id=conversation_id)
-    return JSONResponse(result)
-
-
-@app.post("/api/evaluate")
-async def api_evaluate(request: Request):
-    if not check_auth(request):
-        return JSONResponse({"error": "Unauthorized"}, status_code=401)
-    body = await request.json()
-    result = proc.evaluate_procurement(
-        purchase_type=body.get('purchase_type', 'goods_services'),
-        amount=int(body.get('amount', 0)),
-        entity_type=body.get('entity_type', 'all'),
-        is_cooperative=body.get('is_cooperative', False),
-    )
-    return JSONResponse(result)

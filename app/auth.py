@@ -7,7 +7,6 @@ Password gate + signed invite links (no login form needed for recipients).
 import os
 from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 from fastapi import Request, Response
-from fastapi.responses import RedirectResponse
 
 SITE_PASSWORD = os.getenv('SITE_PASSWORD', '')
 SECRET_KEY = os.getenv('SECRET_KEY', 'change-me')

@@ -278,48 +278,6 @@ footer a { color: var(--primary-light); }
     border-color: var(--primary);
 }
 
-.response-box {
-    background: white;
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 1.5rem;
-}
-
-.response-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 1rem;
-    padding-bottom: 0.75rem;
-    border-bottom: 1px solid var(--border);
-}
-
-.badge.cached {
-    background: #e8f8f5;
-    color: var(--success);
-    padding: 0.2rem 0.6rem;
-    border-radius: 12px;
-    font-size: 0.75rem;
-}
-
-.response-content {
-    font-size: 0.95rem;
-    line-height: 1.7;
-}
-
-.response-content h1, .response-content h2, .response-content h3 {
-    color: var(--primary);
-    margin-top: 1rem;
-    margin-bottom: 0.5rem;
-}
-
-.response-content ul, .response-content ol {
-    margin: 0.5rem 0 0.5rem 1.5rem;
-}
-
-.response-content li { margin-bottom: 0.3rem; }
-.response-content hr { margin: 1rem 0; border-color: var(--border); }
-.response-content em { color: var(--text-light); }
 
 /* Decision Tree Page */
 .decision-page h1 { margin-bottom: 0.25rem; }
@@ -554,13 +512,6 @@ footer a { color: var(--primary-light); }
         text-align: center;
     }
 
-    /* Response box */
-    .response-box { padding: 1rem; }
-    .response-content { font-size: 0.9rem; }
-    .response-content h1 { font-size: 1.3rem; }
-    .response-content h2 { font-size: 1.15rem; }
-    .response-content h3 { font-size: 1.05rem; }
-
     /* Result box */
     .result-box { padding: 1rem; }
     .result-summary { padding: 0.75rem; }
@@ -586,7 +537,6 @@ footer a { color: var(--primary-light); }
 }
 
 /* Post-answer UX */
-.hidden { display: none; }
 .new-question-section {
     text-align: center;
     margin: 1.5rem 0;
@@ -597,16 +547,6 @@ footer a { color: var(--primary-light); }
     min-height: 48px;
 }
 
-/* Original question/query echo */
-.your-question {
-    background: #eaf2f8;
-    border-left: 4px solid #1a5276;
-    padding: 0.75rem 1rem;
-    margin-bottom: 1.5rem;
-    border-radius: 4px;
-    font-size: 1rem;
-    color: #2c3e50;
-}
 /* Conversation thread styles — append to style.css */
 
 /* Conversation header */
