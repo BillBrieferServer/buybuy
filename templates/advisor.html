@@ -89,10 +89,14 @@ function showLoading(msg) {
     }
 }
 
-// Auto-scroll to latest message only on follow-ups (not first answer)
+// Scroll to the last user message so the follow-up question is visible
 var thread = document.querySelector('.conversation-thread');
 if (thread && thread.children.length > 2) {
-    thread.scrollTop = thread.scrollHeight;
+    var userMsgs = thread.querySelectorAll('.conv-user');
+    var lastUser = userMsgs[userMsgs.length - 1];
+    if (lastUser) {
+        lastUser.scrollIntoView({block: 'start'});
+    }
 }
 </script>
 {% endblock %}
