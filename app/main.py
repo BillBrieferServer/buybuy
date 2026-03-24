@@ -76,14 +76,14 @@ async def health():
 async def index(request: Request):
     if check_auth(request):
         return RedirectResponse("/home", status_code=302)
-    return templates.TemplateResponse("index.html", context={"request": request})
+    return templates.TemplateResponse(request, "index.html")
 
 
 @app.get("/login", response_class=HTMLResponse)
 async def login_page(request: Request):
     if check_auth(request):
         return RedirectResponse("/home", status_code=302)
-    return templates.TemplateResponse("login.html", context={"request": request, "error": None})
+    return templates.TemplateResponse(request, "login.html", context={"error": None})
 
 
 @app.post("/login", response_class=HTMLResponse)
@@ -92,8 +92,7 @@ async def login_submit(request: Request, password: str = Form(...)):
         response = RedirectResponse("/home", status_code=302)
         create_session_cookie(response)
         return response
-    return templates.TemplateResponse("login.html", context={
-        "request": request,
+    return templates.TemplateResponse(request, "login.html", context={
         "error": "Incorrect password. Please try again."
     })
 
@@ -109,8 +108,7 @@ async def enter_via_link(request: Request, token: str):
     """Authenticate via signed invite link — no password form needed."""
     data = validate_invite_token(token)
     if not data:
-        return templates.TemplateResponse("login.html", context={
-            "request": request,
+        return templates.TemplateResponse(request, "login.html", context={
             "error": "This link has expired or is invalid. Please request a new one."
         })
     response = RedirectResponse("/home", status_code=302)
@@ -123,9 +121,8 @@ async def invite_page(request: Request):
     """Generate invite links (requires auth)."""
     if not check_auth(request):
         return RedirectResponse("/login", status_code=302)
-    return templates.TemplateResponse("invite.html", context={
-        "request": request,
-        "link": None,
+    return templates.TemplateResponse(request, "invite.html", context={
+        "link": None
     })
 
 
@@ -138,11 +135,10 @@ async def invite_generate(request: Request, label: str = Form(''), days: int = F
     token = generate_invite_token(label=label, days=days)
     base_url = str(request.base_url).rstrip('/')
     link = f"{base_url}/enter/{token}"
-    return templates.TemplateResponse("invite.html", context={
-        "request": request,
+    return templates.TemplateResponse(request, "invite.html", context={
         "link": link,
         "label": label,
-        "days": days,
+        "days": days
     })
 
 
@@ -153,7 +149,7 @@ async def invite_generate(request: Request, label: str = Form(''), days: int = F
 async def home(request: Request):
     if not check_auth(request):
         return RedirectResponse("/login", status_code=302)
-    return templates.TemplateResponse("home.html", context={"request": request})
+    return templates.TemplateResponse(request, "home.html")
 
 
 @app.get("/advisor", response_class=HTMLResponse)
@@ -164,12 +160,11 @@ async def advisor_page(request: Request):
     conversation_id = get_conversation_id(request)
     history = advisor.get_conversation(conversation_id)
 
-    response = templates.TemplateResponse("advisor.html", context={
-        "request": request,
+    response = templates.TemplateResponse(request, "advisor.html", context={
         "history": history,
         "conversation_id": conversation_id,
         "response": None,
-        "question": None,
+        "question": None
     })
     set_conversation_cookie(response, conversation_id)
     return response
@@ -186,14 +181,13 @@ async def advisor_submit(request: Request, question: str = Form(...)):
         remaining_wait = int(ai_limiter.seconds_until_next(client_ip)) + 1
         conversation_id = get_conversation_id(request)
         history = advisor.get_conversation(conversation_id)
-        response = templates.TemplateResponse("advisor.html", context={
-            "request": request,
+        response = templates.TemplateResponse(request, "advisor.html", context={
             "history": history,
             "conversation_id": conversation_id,
             "response": None,
             "question": question,
             "rate_limited": True,
-            "wait_seconds": remaining_wait,
+            "wait_seconds": remaining_wait
         })
         set_conversation_cookie(response, conversation_id)
         return response
@@ -210,14 +204,13 @@ async def advisor_submit(request: Request, question: str = Form(...)):
     # Reload full conversation (now includes the new exchange)
     history = advisor.get_conversation(conversation_id)
 
-    response = templates.TemplateResponse("advisor.html", context={
-        "request": request,
+    response = templates.TemplateResponse(request, "advisor.html", context={
         "history": history,
         "conversation_id": conversation_id,
         "question": question,
         "response": response_html,
         "cached": result['cached'],
-        "tokens": result['tokens'],
+        "tokens": result['tokens']
     })
     set_conversation_cookie(response, conversation_id)
     return response
@@ -238,11 +231,10 @@ async def advisor_new_conversation(request: Request):
 async def decision_tree_page(request: Request):
     if not check_auth(request):
         return RedirectResponse("/login", status_code=302)
-    return templates.TemplateResponse("decision_tree.html", context={
-        "request": request,
+    return templates.TemplateResponse(request, "decision_tree.html", context={
         "purchase_types": proc.PURCHASE_TYPES,
         "entity_types": proc.ENTITY_TYPES,
-        "result": None,
+        "result": None
     })
 
 
@@ -258,12 +250,11 @@ async def decision_tree_submit(request: Request,
     try:
         amount_int = int(amount.replace(',', '').replace('$', '').strip())
     except ValueError:
-        return templates.TemplateResponse("decision_tree.html", context={
-            "request": request,
+        return templates.TemplateResponse(request, "decision_tree.html", context={
             "purchase_types": proc.PURCHASE_TYPES,
             "entity_types": proc.ENTITY_TYPES,
             "result": None,
-            "error": "Please enter a valid dollar amount.",
+            "error": "Please enter a valid dollar amount."
         })
 
     checklist_result = proc.generate_checklist(
@@ -273,8 +264,7 @@ async def decision_tree_submit(request: Request,
         is_cooperative=(is_cooperative == 'yes'),
     )
 
-    return templates.TemplateResponse("decision_tree.html", context={
-        "request": request,
+    return templates.TemplateResponse(request, "decision_tree.html", context={
         "purchase_types": proc.PURCHASE_TYPES,
         "entity_types": proc.ENTITY_TYPES,
         "result": checklist_result,
@@ -282,8 +272,8 @@ async def decision_tree_submit(request: Request,
             'purchase_type': purchase_type,
             'amount': amount_int,
             'entity_type': entity_type,
-            'is_cooperative': is_cooperative,
-        },
+            'is_cooperative': is_cooperative
+        }
     })
 
 
