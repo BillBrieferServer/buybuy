@@ -89,9 +89,9 @@ function showLoading(msg) {
     }
 }
 
-// Auto-scroll to the latest message
+// Auto-scroll to latest message only on follow-ups (not first answer)
 var thread = document.querySelector('.conversation-thread');
-if (thread) {
+if (thread && thread.children.length > 2) {
     thread.scrollTop = thread.scrollHeight;
 }
 </script>
