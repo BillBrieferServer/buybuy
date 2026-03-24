@@ -6,13 +6,42 @@
     <h1>Ask a Procurement Question</h1>
     <p>Ask any question about Idaho public procurement. Your answer will cite specific Idaho Code sections.</p>
 
-    {% if not response %}
+    {% if history and history|length > 0 %}
+    <div class="conversation-header">
+        <span class="conv-label">Conversation ({{ (history|length / 2)|int }} exchange{{ 's' if (history|length / 2)|int != 1 else '' }})</span>
+        <a href="/advisor/new" class="btn-new-conv">New Conversation</a>
+    </div>
+
+    <div class="conversation-thread">
+        {% for msg in history %}
+        <div class="conv-message conv-{{ msg.role }}">
+            <div class="conv-role">{{ 'You' if msg.role == 'user' else 'Advisor' }}</div>
+            <div class="conv-content">
+                {% if msg.role == 'assistant' %}
+                    {{ msg.content | safe }}
+                {% else %}
+                    {{ msg.content }}
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if rate_limited %}
+    <div class="error rate-limit-msg">
+        You've asked too many questions in a short time. Please wait about {{ wait_seconds }} seconds before asking again.
+    </div>
+    {% endif %}
+
     <form method="POST" action="/advisor" id="questionForm">
-        <textarea name="question" rows="3" placeholder="e.g., Do I need to bid this $80,000 truck purchase?"
-                  required></textarea>
+        <textarea name="question" rows="3"
+                  placeholder="{{ 'Ask a follow-up question...' if history else 'e.g., Do I need to bid this $80,000 truck purchase?' }}"
+                  required>{{ question if question and rate_limited else '' }}</textarea>
         <button type="submit" class="btn-primary">Ask</button>
     </form>
 
+    {% if not history %}
     <div class="suggestions">
         <h3>Try these questions:</h3>
         <div class="suggestion-chips">
@@ -37,28 +66,6 @@
         </div>
     </div>
     {% endif %}
-
-    {% if response %}
-    <div class="your-question">
-        <strong>Your question:</strong> {{ question }}
-    </div>
-
-    <div class="response-box">
-        <div class="response-header">
-            <h3>Answer</h3>
-            {% if cached %}
-            <span class="badge cached">Cached</span>
-            {% endif %}
-        </div>
-        <div class="response-content">
-            {{ response | safe }}
-        </div>
-    </div>
-
-    <div class="new-question-section">
-        <a href="/advisor" class="btn-primary btn-new-question">Ask Another Question</a>
-    </div>
-    {% endif %}
 </div>
 
 <script>
@@ -80,6 +87,12 @@ function showLoading(msg) {
         overlay.querySelector('.loading-text').textContent = msg || 'Analyzing...';
         overlay.classList.add('active');
     }
+}
+
+// Auto-scroll to the latest message
+var thread = document.querySelector('.conversation-thread');
+if (thread) {
+    thread.scrollTop = thread.scrollHeight;
 }
 </script>
 {% endblock %}

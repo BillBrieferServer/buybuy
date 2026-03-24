@@ -607,3 +607,111 @@ footer a { color: var(--primary-light); }
     font-size: 1rem;
     color: #2c3e50;
 }
+/* Conversation thread styles — append to style.css */
+
+/* Conversation header */
+.conversation-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid var(--border);
+}
+
+.conv-label {
+    font-size: 0.9rem;
+    color: var(--text-light);
+    font-weight: 600;
+}
+
+.btn-new-conv {
+    background: white;
+    color: var(--primary);
+    border: 1px solid var(--primary);
+    padding: 0.4rem 1rem;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.btn-new-conv:hover {
+    background: var(--primary);
+    color: white;
+}
+
+/* Message thread */
+.conversation-thread {
+    max-height: 500px;
+    overflow-y: auto;
+    margin-bottom: 1.5rem;
+    padding: 0.5rem 0;
+}
+
+.conv-message {
+    margin-bottom: 1rem;
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+}
+
+.conv-user {
+    background: #eaf2f8;
+    border-left: 3px solid var(--primary);
+}
+
+.conv-assistant {
+    background: white;
+    border: 1px solid var(--border);
+}
+
+.conv-role {
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 0.3rem;
+    color: var(--text-light);
+}
+
+.conv-content {
+    font-size: 0.93rem;
+    line-height: 1.6;
+}
+
+.conv-assistant .conv-content h1,
+.conv-assistant .conv-content h2,
+.conv-assistant .conv-content h3 {
+    color: var(--primary);
+    margin-top: 0.75rem;
+    margin-bottom: 0.4rem;
+}
+
+.conv-assistant .conv-content ul,
+.conv-assistant .conv-content ol {
+    margin: 0.4rem 0 0.4rem 1.5rem;
+}
+
+.conv-assistant .conv-content li { margin-bottom: 0.25rem; }
+.conv-assistant .conv-content hr { margin: 0.75rem 0; border-color: var(--border); }
+.conv-assistant .conv-content em { color: var(--text-light); }
+
+/* Rate limit message */
+.rate-limit-msg {
+    background: #fef9e7;
+    border: 1px solid #f9e79f;
+    color: var(--warning);
+    padding: 0.75rem 1rem;
+    border-radius: 6px;
+    margin-bottom: 1rem;
+    font-weight: 600;
+}
+
+/* Mobile adjustments for conversation */
+@media (max-width: 768px) {
+    .conversation-thread { max-height: 400px; }
+    .conv-message { padding: 0.6rem 0.75rem; }
+    .conv-content { font-size: 0.88rem; }
+    .conversation-header { flex-direction: row; gap: 0.5rem; }
+    .btn-new-conv { padding: 0.5rem 0.75rem; min-height: 44px; display: flex; align-items: center; }
+}

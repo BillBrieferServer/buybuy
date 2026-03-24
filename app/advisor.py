@@ -2,6 +2,7 @@
 advisor.py
 Claude API integration for procurement Q&A.
 Grounded responses with statute citations.
+Supports multi-turn conversations and async calls.
 """
 
 import os
@@ -10,10 +11,11 @@ import json
 import hashlib
 import sqlite3
 import logging
-import time
+import asyncio
+import uuid
 from datetime import datetime
 from pathlib import Path
-from anthropic import Anthropic
+from anthropic import AsyncAnthropic
 
 from . import knowledge_base as kb
 
@@ -77,6 +79,9 @@ SYSTEM_PROMPT = """You are the Idaho Procurement & CES Advisor, an AI assistant 
 8. When answering CES questions, reference the CES organizational knowledge provided. Explain CES programs, benefits, and procedures with the same authority as procurement law.
 9. When a question touches both procurement law AND CES programs (e.g., "can I use CES for a $300K purchase?"), address BOTH the legal requirements and the CES process.
 
+## CONVERSATION CONTEXT
+You are in a multi-turn conversation. Use prior messages for context when answering follow-up questions. If the user refers to "it", "that purchase", "the threshold", etc., resolve the reference from conversation history.
+
 ## VENDOR PREFERENCE RULES
 When answering questions about out-of-state vendors or vendor preferences:
 1. ALWAYS provide the specific preference percentage and statute for the other state
@@ -109,7 +114,7 @@ DISCLAIMER = ("\n\n---\n*This is informational guidance, not legal advice. "
 
 
 def init_cache():
-    """Initialize AI response cache."""
+    """Initialize AI response cache and conversations table."""
     CACHE_DIR.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(str(CACHE_DB))
     conn.execute("""
@@ -122,13 +127,54 @@ def init_cache():
             tokens_used INTEGER
         )
     """)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS conversations (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            conversation_id TEXT NOT NULL,
+            role TEXT NOT NULL,
+            content TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    conn.execute("""
+        CREATE INDEX IF NOT EXISTS idx_conv_id
+        ON conversations(conversation_id)
+    """)
     conn.commit()
     conn.close()
 
 
+# ─── Cache Normalization ─────────────────────────────────────
+
+def normalize_question(question: str) -> str:
+    """Normalize a question for consistent cache keys.
+    Collapses whitespace, lowercases, strips dollar signs/commas from numbers.
+    """
+    q = question.lower().strip()
+    # Collapse whitespace
+    q = re.sub(r'\s+', ' ', q)
+    # Normalize dollar amounts: "$80,000" / "$80K" / "$80k" -> "80000"
+    # Handle $NNNk / $NNNm patterns
+    def expand_shorthand(m):
+        num = float(m.group(1).replace(',', ''))
+        suffix = (m.group(2) or '').lower()
+        if suffix == 'k':
+            num *= 1000
+        elif suffix == 'm':
+            num *= 1000000
+        return str(int(num))
+    q = re.sub(r'\$([0-9,]+(?:\.\d+)?)\s*(k|m)?', expand_shorthand, q, flags=re.IGNORECASE)
+    # Remove remaining dollar signs and commas from numbers
+    q = re.sub(r'\$([0-9,]+)', lambda m: m.group(1).replace(',', ''), q)
+    q = re.sub(r'(?<=\d),(?=\d{3})', '', q)
+    # Strip trailing punctuation
+    q = q.rstrip('?!.')
+    return q
+
+
 def get_cached(question: str):
     """Check cache for a previous answer."""
-    qhash = hashlib.sha256(question.lower().strip().encode()).hexdigest()
+    qhash = hashlib.sha256(normalize_question(question).encode()).hexdigest()
     try:
         conn = sqlite3.connect(str(CACHE_DB))
         cur = conn.execute("SELECT response FROM cache WHERE question_hash = ?", (qhash,))
@@ -141,7 +187,7 @@ def get_cached(question: str):
 
 def set_cached(question: str, response: str, model: str = None, tokens: int = None):
     """Store response in cache."""
-    qhash = hashlib.sha256(question.lower().strip().encode()).hexdigest()
+    qhash = hashlib.sha256(normalize_question(question).encode()).hexdigest()
     try:
         conn = sqlite3.connect(str(CACHE_DB))
         conn.execute("""
@@ -153,6 +199,58 @@ def set_cached(question: str, response: str, model: str = None, tokens: int = No
     except Exception as e:
         logger.warning(f"Cache write failed: {e}")
 
+
+# ─── Conversation History ─────────────────────────────────────
+
+def new_conversation_id() -> str:
+    return str(uuid.uuid4())
+
+
+def save_message(conversation_id: str, role: str, content: str):
+    """Append a message to a conversation."""
+    try:
+        conn = sqlite3.connect(str(CACHE_DB))
+        conn.execute(
+            "INSERT INTO conversations (conversation_id, role, content) VALUES (?, ?, ?)",
+            (conversation_id, role, content))
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        logger.warning(f"Failed to save conversation message: {e}")
+
+
+def get_conversation(conversation_id: str, limit: int = 20) -> list:
+    """Get conversation history as a list of {role, content} dicts.
+    Returns the most recent `limit` messages.
+    """
+    try:
+        conn = sqlite3.connect(str(CACHE_DB))
+        cur = conn.execute(
+            "SELECT role, content FROM conversations "
+            "WHERE conversation_id = ? ORDER BY id DESC LIMIT ?",
+            (conversation_id, limit))
+        rows = cur.fetchall()
+        conn.close()
+        # Reverse to chronological order
+        return [{"role": r[0], "content": r[1]} for r in reversed(rows)]
+    except Exception:
+        return []
+
+
+def clear_conversation(conversation_id: str):
+    """Delete all messages for a conversation."""
+    try:
+        conn = sqlite3.connect(str(CACHE_DB))
+        conn.execute(
+            "DELETE FROM conversations WHERE conversation_id = ?",
+            (conversation_id,))
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        logger.warning(f"Failed to clear conversation: {e}")
+
+
+# ─── State Detection ──────────────────────────────────────────
 
 def detect_states(question: str) -> list:
     """
@@ -166,15 +264,12 @@ def detect_states(question: str) -> list:
     for name in sorted(STATE_MAP.keys(), key=len, reverse=True):
         if name in q_lower and name != 'idaho':
             found.add(STATE_MAP[name])
-            # Remove matched name to avoid partial re-matches
             q_lower = q_lower.replace(name, '')
 
     # Check for 2-letter abbreviations (word boundaries)
     for abbrev in ABBREV_MAP:
         if abbrev == 'ID':
             continue
-        # Match as standalone word (e.g., "OR" but not "or" in "or else")
-        # Only match uppercase abbreviations
         pattern = r'\b' + abbrev + r'\b'
         if re.search(pattern, question):
             found.add(abbrev)
@@ -199,7 +294,6 @@ def build_vendor_preference_context(question: str) -> str:
     states = detect_states(question)
     is_pref = is_preference_question(question)
 
-    # No state reference and no preference keywords — skip
     if not states and not is_pref:
         return ""
 
@@ -211,7 +305,6 @@ def build_vendor_preference_context(question: str) -> str:
                 "percentage when comparing against Idaho bidders.\n\n")
 
     if states:
-        # Specific state(s) mentioned — look them up
         for abbrev in states:
             try:
                 pref = kb.get_vendor_preference(abbrev)
@@ -245,26 +338,22 @@ def build_vendor_preference_context(question: str) -> str:
                 logger.warning(f"Failed to look up preference for {abbrev}: {e}")
 
     elif is_pref:
-        # General preference question — provide summary
         try:
             pref_states = kb.get_all_preference_states()
             no_pref = kb.get_no_preference_states()
 
-            # States with specific percentages
             pct_states = [s for s in pref_states if s.get('preference_percent')]
             context += "### States with Specific Percentage Preferences\n"
             for s in pct_states:
                 context += (f"- **{s['state_name']}** ({s['state_abbrev']}): "
                             f"{s['preference_percent']}% — {s['state_statute']}\n")
 
-            # States with reciprocal/tie-only
             recip_states = [s for s in pref_states if not s.get('preference_percent')]
             context += "\n### States with Reciprocal or Tie-Bid Preference Only\n"
             for s in recip_states:
                 context += (f"- **{s['state_name']}** ({s['state_abbrev']}): "
                             f"{s['preference_type']} — {s['state_statute']}\n")
 
-            # States with no preference
             context += "\n### States with No Vendor Preference\n"
             for s in no_pref:
                 context += f"- **{s['state_name']}** ({s['state_abbrev']})\n"
@@ -275,16 +364,35 @@ def build_vendor_preference_context(question: str) -> str:
     return context
 
 
-def ask(question: str, use_cache: bool = True) -> dict:
+# ─── Main Ask Function ────────────────────────────────────────
+
+async def ask(question: str, conversation_id: str = None, use_cache: bool = True) -> dict:
     """
     Ask a procurement question and get a grounded AI response.
-    Returns dict with 'response', 'cached', 'model', 'tokens'.
+    Supports multi-turn conversations via conversation_id.
+    Returns dict with 'response', 'cached', 'model', 'tokens', 'conversation_id'.
     """
-    # Check cache
-    if use_cache:
+    # For single-turn (no conversation history), check cache
+    is_multi_turn = False
+    if conversation_id:
+        history = get_conversation(conversation_id)
+        if history:
+            is_multi_turn = True
+
+    if use_cache and not is_multi_turn:
         cached = get_cached(question)
         if cached:
-            return {'response': cached, 'cached': True, 'model': None, 'tokens': 0}
+            # Save to conversation if we have an ID
+            if conversation_id:
+                save_message(conversation_id, "user", question)
+                save_message(conversation_id, "assistant", cached)
+            return {
+                'response': cached,
+                'cached': True,
+                'model': None,
+                'tokens': 0,
+                'conversation_id': conversation_id,
+            }
 
     # Build context from QIBrain
     try:
@@ -293,9 +401,14 @@ def ask(question: str, use_cache: bool = True) -> dict:
         logger.error(f"Failed to build knowledge context: {e}")
         knowledge_context = "## NOTE: Could not load reference data from database.\n"
 
-    # Build vendor preference context if relevant
+    # Build vendor preference context — scan current question and conversation
     try:
-        vendor_context = build_vendor_preference_context(question)
+        pref_text = question
+        if is_multi_turn:
+            # Also scan recent conversation for state references
+            for msg in history[-4:]:
+                pref_text += " " + msg["content"]
+        vendor_context = build_vendor_preference_context(pref_text)
     except Exception as e:
         logger.error(f"Failed to build vendor preference context: {e}")
         vendor_context = ""
@@ -305,45 +418,77 @@ def ask(question: str, use_cache: bool = True) -> dict:
         vendor_preference_context=vendor_context,
     )
 
-    # Call Claude
+    # Build messages list
+    if is_multi_turn:
+        messages = list(history) + [{"role": "user", "content": question}]
+    else:
+        messages = [{"role": "user", "content": question}]
+
+    # Call Claude (async with fast failure)
     api_key = os.getenv('ANTHROPIC_API_KEY')
     model = os.getenv('ANTHROPIC_MODEL', 'claude-sonnet-4-20250514')
+    client = AsyncAnthropic(api_key=api_key)
 
-    client = Anthropic(api_key=api_key)
-
-    max_retries = 3
+    max_retries = 2
     for attempt in range(max_retries):
         try:
-            message = client.messages.create(
-                model=model,
-                max_tokens=2048,
-                system=system,
-                messages=[{"role": "user", "content": question}],
+            message = await asyncio.wait_for(
+                client.messages.create(
+                    model=model,
+                    max_tokens=2048,
+                    system=system,
+                    messages=messages,
+                ),
+                timeout=30.0,
             )
 
             response_text = message.content[0].text + DISCLAIMER
             tokens = message.usage.input_tokens + message.usage.output_tokens
 
-            # Cache the response
-            if use_cache:
+            # Cache single-turn responses
+            if use_cache and not is_multi_turn:
                 set_cached(question, response_text, model, tokens)
+
+            # Save to conversation
+            if conversation_id:
+                save_message(conversation_id, "user", question)
+                save_message(conversation_id, "assistant", response_text)
 
             return {
                 'response': response_text,
                 'cached': False,
                 'model': model,
                 'tokens': tokens,
+                'conversation_id': conversation_id,
             }
 
-        except Exception as e:
-            logger.error(f"Claude API error (attempt {attempt + 1}): {e}")
+        except asyncio.TimeoutError:
+            logger.error(f"Claude API timeout (attempt {attempt + 1})")
             if attempt < max_retries - 1:
-                time.sleep(2 ** attempt)
+                await asyncio.sleep(1)
             else:
                 return {
-                    'response': f"I'm sorry, I encountered an error processing your question. "
-                                f"Please try again in a moment.\n\nError: {str(e)}" + DISCLAIMER,
+                    'response': ("I'm sorry, the request timed out. "
+                                 "Please try again in a moment.") + DISCLAIMER,
                     'cached': False,
                     'model': model,
                     'tokens': 0,
+                    'conversation_id': conversation_id,
+                }
+        except Exception as e:
+            logger.error(f"Claude API error (attempt {attempt + 1}): {e}")
+            if attempt < max_retries - 1:
+                await asyncio.sleep(1)
+            else:
+                err_msg = str(e)
+                # Don't leak internal details
+                if 'api_key' in err_msg.lower() or 'auth' in err_msg.lower():
+                    err_msg = "Service configuration error"
+                return {
+                    'response': (f"I'm sorry, I encountered an error processing your question. "
+                                 f"Please try again in a moment.\n\nError: {err_msg}") + DISCLAIMER,
+                    'cached': False,
+                    'model': model,
+                    'tokens': 0,
+                    'conversation_id': conversation_id,
                 }

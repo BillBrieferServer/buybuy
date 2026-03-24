@@ -19,6 +19,7 @@ from .auth import check_auth, verify_password, create_session_cookie, logout
 from . import procurement as proc
 from . import advisor
 from . import knowledge_base as kb
+from .rate_limit import RateLimiter
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -32,12 +33,34 @@ templates = Jinja2Templates(directory="templates")
 # Initialize cache on startup
 advisor.init_cache()
 
+# Rate limiter: 10 AI requests per minute per IP
+ai_limiter = RateLimiter(max_requests=10, window_seconds=60)
 
-def require_auth(request: Request):
-    """Dependency that redirects to login if not authenticated."""
-    if not check_auth(request):
-        return None
-    return True
+CONV_COOKIE = "buybuy_conv"
+
+
+def get_client_ip(request: Request) -> str:
+    """Get client IP, respecting X-Forwarded-For from nginx."""
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    return request.client.host
+
+
+def get_conversation_id(request: Request) -> str:
+    """Get or create a conversation ID from cookie."""
+    return request.cookies.get(CONV_COOKIE) or advisor.new_conversation_id()
+
+
+def set_conversation_cookie(response, conversation_id: str):
+    """Set the conversation ID cookie."""
+    response.set_cookie(
+        CONV_COOKIE, conversation_id,
+        max_age=86400,  # 24 hours
+        httponly=True,
+        samesite="lax",
+        secure=True,
+    )
 
 
 # ─── Health Check ─────────────────────────────────────────────
@@ -95,11 +118,19 @@ async def home(request: Request):
 async def advisor_page(request: Request):
     if not check_auth(request):
         return RedirectResponse("/login", status_code=302)
-    return templates.TemplateResponse("advisor.html", {
+
+    conversation_id = get_conversation_id(request)
+    history = advisor.get_conversation(conversation_id)
+
+    response = templates.TemplateResponse("advisor.html", {
         "request": request,
+        "history": history,
+        "conversation_id": conversation_id,
         "response": None,
         "question": None,
     })
+    set_conversation_cookie(response, conversation_id)
+    return response
 
 
 @app.post("/advisor", response_class=HTMLResponse)
@@ -107,20 +138,58 @@ async def advisor_submit(request: Request, question: str = Form(...)):
     if not check_auth(request):
         return RedirectResponse("/login", status_code=302)
 
-    result = advisor.ask(question)
+    # Rate limit check
+    client_ip = get_client_ip(request)
+    if not ai_limiter.is_allowed(client_ip):
+        remaining_wait = int(ai_limiter.seconds_until_next(client_ip)) + 1
+        conversation_id = get_conversation_id(request)
+        history = advisor.get_conversation(conversation_id)
+        response = templates.TemplateResponse("advisor.html", {
+            "request": request,
+            "history": history,
+            "conversation_id": conversation_id,
+            "response": None,
+            "question": question,
+            "rate_limited": True,
+            "wait_seconds": remaining_wait,
+        })
+        set_conversation_cookie(response, conversation_id)
+        return response
+
+    conversation_id = get_conversation_id(request)
+    result = await advisor.ask(question, conversation_id=conversation_id)
+
     import markdown
     response_html = markdown.markdown(
         result['response'],
         extensions=['tables', 'fenced_code']
     )
 
-    return templates.TemplateResponse("advisor.html", {
+    # Reload full conversation (now includes the new exchange)
+    history = advisor.get_conversation(conversation_id)
+
+    response = templates.TemplateResponse("advisor.html", {
         "request": request,
+        "history": history,
+        "conversation_id": conversation_id,
         "question": question,
         "response": response_html,
         "cached": result['cached'],
         "tokens": result['tokens'],
     })
+    set_conversation_cookie(response, conversation_id)
+    return response
+
+
+@app.get("/advisor/new", response_class=HTMLResponse)
+async def advisor_new_conversation(request: Request):
+    """Start a fresh conversation."""
+    if not check_auth(request):
+        return RedirectResponse("/login", status_code=302)
+    new_id = advisor.new_conversation_id()
+    response = RedirectResponse("/advisor", status_code=302)
+    set_conversation_cookie(response, new_id)
+    return response
 
 
 @app.get("/decision-tree", response_class=HTMLResponse)
@@ -189,11 +258,22 @@ async def checklist_page(request: Request):
 async def api_ask(request: Request):
     if not check_auth(request):
         return JSONResponse({"error": "Unauthorized"}, status_code=401)
+
+    # Rate limit
+    client_ip = get_client_ip(request)
+    if not ai_limiter.is_allowed(client_ip):
+        return JSONResponse(
+            {"error": "Rate limit exceeded. Please wait before asking another question."},
+            status_code=429,
+        )
+
     body = await request.json()
     question = body.get('question', '')
     if not question:
         return JSONResponse({"error": "No question provided"}, status_code=400)
-    result = advisor.ask(question)
+
+    conversation_id = body.get('conversation_id')
+    result = await advisor.ask(question, conversation_id=conversation_id)
     return JSONResponse(result)
 
 
