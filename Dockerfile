@@ -4,8 +4,8 @@ WORKDIR /app
 
 RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
 
-RUN pip install --no-cache-dir fastapi uvicorn jinja2 python-multipart \
-    python-dotenv anthropic psycopg2-binary itsdangerous markdown
+RUN pip install --no-cache-dir fastapi==0.135.2 uvicorn==0.42.0 jinja2 python-multipart \
+    python-dotenv anthropic==0.86.0 psycopg2-binary itsdangerous markdown
 
 COPY app/ ./app/
 COPY templates/ ./templates/
