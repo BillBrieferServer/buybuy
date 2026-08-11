@@ -1,6 +1,11 @@
 # Procurement Advisor — buybuy.quietimpact.ai
 services:
   app:
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     build: .
     container_name: buybuy-app
     restart: unless-stopped
